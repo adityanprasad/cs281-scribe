@@ -137,6 +137,65 @@ Thus we are interested in $p(y_1,\ldots,y_T | x_1, \ldots, x_T)$, and $p(y_t|x_t
 MEMM comes with the distinct advantage that we no longer have to assume our features are independent. This is particularly useful in, say, tagging parts of speech where can pick an arbitrary feature basis without worrying about independence. However, the model comes with the downside that there is no closed form, so we must use SGD, i.e. we isolate each $x_i$ and predict $y_i$ with logistic regression.
 
 Picking $p(y_t|x_t,y_{t-1})$ here as an arbitrary neural network is called a Neural Network Markov Model or NN-Markov Model. 
+
+
+\subsection{Brief Exercise}
+We'll try to show how inference over Markov models can be convenient by working an example.
+\begin{exercise}
+We are given a Markov chain defined in the following way:
+\begin{align*}
+x(n + 1) = k x(n) + \epsilon(n), \quad n \in \mathbb{N} \\
+x(0) \sim \mathcal{N}(0, \tau^2)
+\end{align*}
+This represents some kind of exponentially growing quantity that, at every timestep, is hit with some amount of random noise $\epsilon(n)$. The rate constant of growth $k$ is unknown; we will infer it.
+
+\begin{enumerate}
+	\item Suppose $\epsilon(n) \sim \mathcal{N}(0, \sigma^2)$ is the same at every timestep. Given an observation of $x(0), \dots, x(N)$ what is the maximum likelihood estimate of $k$? That is, maximize:
+	\begin{align*}
+	p(x(0), \dots, x(N) | k)
+	\end{align*}
+	
+	\item Now suppose $\epsilon(n) \sim \mathcal{N}(0, \sigma(n)^2)$ has a different variance at each $n$. Derive the maximum likelihood estimate of $k$ in this context.
+\end{enumerate}
+
+\end{exercise}
+\begin{proof}
+Part 1. We can write down a likelihood for our observation given $k$:
+\begin{align}
+p(x(0), \dots, x(N) | k) &= \mathcal{N}(x(0) | 0, \tau^2) \prod_{n = 1}^N \mathcal{N}(x(n) - k x(n - 1) | 0, \sigma^2) \\
+\log p(x(0), \dots, x(N) | k) &\propto \sum_{n = 1}^N \log \mathcal{N}(x(n) - k x(n - 1) | 0, \sigma^2) \\
+&= -\sum_{n = 1}^N \frac{1}{2\sigma^2} (x(n) - k x(n - 1))^2 + \text{const.}
+\end{align}
+Maximize this by stationary gradient:
+\begin{align}
+-\frac{d}{dk} \sum_{n = 1}^N \frac{1}{2\sigma^2} (x(n) - k x(n - 1))^2 &= -\frac{1}{\sigma^2} \sum_{n = 1}^N (x(n) - k x(n - 1)) \\
+&= \frac{1}{\sigma^2} \left(k x(0) + \sum_{n = 1}^{N - 1} (k - 1)x(n) - x(N) \right) = 0\\
+0 &= k x(0) + \sum_{n = 1}^{N - 1} (k - 1)x(n) - x(N) \\
+&= k \sum_{n = 0}^{N - 1} x(n) - \sum_{n = 1}^N x(n) \\
+k &= \frac{\sum_{n = 1}^N x(n)}{\sum_{n = 0}^{N - 1} x(n)}
+\end{align}
+A couple of notes:
+\begin{enumerate}
+	\item Note the little shuffle we are permitted to do by the fact that each state is only dependent on the previous one. If $x(n)$ were a general function of the preceding $x$, this would not be possible.
+	
+	\item We can derive such a convenient maximum-likelihood estimate even when $x(n)$ depends on some few preceding $K$ items.
+\end{enumerate}
+
+Part 2. We can also derive a similarly convenient estimate when $\epsilon(n)$ has variable $\sigma$ over time. We proceed along similar lines: this time our likelihood is:
+\begin{align}
+\log p(x(0), \dots, x(N) | k) &= -\sum_{n = 1}^N \frac{1}{2\sigma(n)^2} (x(n) - k x(n - 1))^2 + \text{const.}
+\end{align}
+Then stationary gradient gives us:
+\begin{align}
+-\frac{d}{dk} \sum_{n = 1}^N \frac{1}{2\sigma(n)^2} (x(n) - k x(n - 1))^2 &= -\sum_{n = 1}^N \frac{1}{\sigma(n)^2} (x(n) - k x(n - 1)) \\
+&= k \frac{x(0)}{\sigma(1)^2} + \sum_{n = 1}^{N - 1} \left(k/\sigma(n + 1)^2 - 1/\sigma(n)^2\right)x(n) - \frac{x(N)}{\sigma(N)^2} = 0\\
+0 &= k \sum_{n = 0}^{N - 1} \frac{x(n)}{\sigma(n + 1)^2} - \sum_{n = 1}^N \frac{x(n)}{\sigma(n)^2} \\
+k &= \frac{\sum_{n = 0}^{N - 1} \frac{x(n)}{\sigma(n + 1)^2}}{\sum_{n = 1}^N \frac{x(n)}{\sigma(n)^2}}
+\end{align}
+How does this differ from the preceding? When the variance on a time-step is higher, we weight its contribution to the estimate of $k$ lower.
+\end{proof}
+
+
 \subsection{Conditional Random Field Markov Model}
 While CRF is still a Markov Model, it gets its own subsection due to its importance. The CRF is simply the UGM of all the above Markov Models:
 \begin{center}
